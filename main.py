@@ -1,4 +1,3 @@
-
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, Depends, HTTPException
@@ -6,7 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, String, Float, DateTime, Integer, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session, sessionmaker
 
-DATABASE_URL = "postgresql://kaablab_db_user:aybuVIPBT9DOroxDAmrjQ0J9JYTm4vCQ@dpg-db8313mq1p3s739cj4mg-a/kaablab_db"
+DATABASE_URL = "postgresql+psycopg://kaablab_db_user:aybuVIPBT9DOroxDAmrjQ0J9JYTm4vCQ@dpg-db8313mq1p3s739cj4mg-a/kaablab_db"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
