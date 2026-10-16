@@ -182,3 +182,4 @@ def obtener_medicion(medicion_id: int, db: SesionDB):
         )
 
     return medicion
+
