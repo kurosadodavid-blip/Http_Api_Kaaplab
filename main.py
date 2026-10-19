@@ -1,7 +1,7 @@
 
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Annotated
 
 from dotenv import load_dotenv
@@ -182,4 +182,45 @@ def obtener_medicion(medicion_id: int, db: SesionDB):
         )
 
     return medicion
+@app.get("/mediciones/fecha/{fecha}")
+def obtener_registro_deLa_fecha_exacta(fecha: date):
+    with SessionLocal() as db:
+        consulta = select(Medicion).where(
+            Medicion.fecha.cast(DateTime).date() == fecha
+        )
+        registros = db.scalars(consulta).all()
 
+    if not registros:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se encontraron registros para la fecha especificada."
+        )
+
+    return registros
+
+@app.get("/mediciones/fecha/rango/{fecha_inicio}/{fecha_fin}")
+def obtener_registros_por_rango_de_fecha(
+    fecha_inicio: date,
+    fecha_fin: date
+):
+    if fecha_inicio > fecha_fin:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La fecha de inicio no puede ser mayor que la fecha de fin."
+        )
+
+    with SessionLocal() as db:
+        consulta = select(Medicion).where(
+            Medicion.fecha.cast(DateTime).date().between(fecha_inicio, fecha_fin)
+        )
+        registros = db.scalars(consulta).all()
+
+    if not registros:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se encontraron registros para el rango de fechas especificado."
+        )
+
+    return registros
+
+@app.get("/mediciones/fecha/")
