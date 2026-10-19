@@ -1,0 +1,8 @@
+[33mcommit 9b962a657239f29aba722a5184d889928811afef[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: David <kurosadodavid@gmail.com>
+Date:   Mon Oct 19 17:41:02 2026 -0600
+
+    se añadio las funciones de poder buscar los registros apartir de cierta fecha, obtener el registro de una fecha en especifico y obtener un registro entre ciertas fechas
+
+ main.py | 43 [32m++++++++++++++++++++++++++++++++++++++++++[m[31m-[m
+ 1 file changed, 42 insertions(+), 1 deletion(-)
