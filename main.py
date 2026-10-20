@@ -1,7 +1,7 @@
 
 import os
 from contextlib import asynccontextmanager
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Annotated
 
 from dotenv import load_dotenv
@@ -182,11 +182,26 @@ def obtener_medicion(medicion_id: int, db: SesionDB):
         )
 
     return medicion
-@app.get("/mediciones/fecha/{fecha}")
+
+
+@app.get(
+    "/mediciones/fecha/{fecha}",
+    response_model=list[MedicionRespuesta]
+)
 def obtener_registro_deLa_fecha_exacta(fecha: date):
+    inicio = datetime.combine(
+        fecha,
+        time.min,
+        tzinfo=timezone.utc
+    )
+    fin = inicio + timedelta(days=1)
+
     with SessionLocal() as db:
-        consulta = select(Medicion).where(
-            Medicion.fecha.cast(DateTime).date() == fecha
+        consulta = (
+            select(Medicion)
+            .where(Medicion.fecha >= inicio)
+            .where(Medicion.fecha < fin)
+            .order_by(Medicion.fecha)
         )
         registros = db.scalars(consulta).all()
 
@@ -198,14 +213,38 @@ def obtener_registro_deLa_fecha_exacta(fecha: date):
 
     return registros
 
-@app.get("/mediciones/fecha/rango/{fecha_inicio}/{fecha_fin}")
+
+@app.get(
+    "/mediciones/fecha/rango/{fecha_inicio}/{fecha_fin}",
+    response_model=list[MedicionRespuesta]
+)
 def obtener_registros_por_rango_de_fecha(
     fecha_inicio: date,
     fecha_fin: date
 ):
+    if fecha_fin < fecha_inicio:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La fecha final no puede ser anterior a la fecha inicial."
+        )
+
+    inicio = datetime.combine(
+        fecha_inicio,
+        time.min,
+        tzinfo=timezone.utc
+    )
+    fin = datetime.combine(
+        fecha_fin + timedelta(days=1),
+        time.min,
+        tzinfo=timezone.utc
+    )
+
     with SessionLocal() as db:
-        consulta = select(Medicion).where(
-            Medicion.fecha.cast(DateTime).date().between(fecha_inicio, fecha_fin)
+        consulta = (
+            select(Medicion)
+            .where(Medicion.fecha >= inicio)
+            .where(Medicion.fecha < fin)
+            .order_by(Medicion.fecha)
         )
         registros = db.scalars(consulta).all()
 
@@ -217,25 +256,40 @@ def obtener_registros_por_rango_de_fecha(
 
     return registros
 
-@app.get("/mediciones/fecha/apartir/{fecha}")
-def obtener_registros_apartir_de_fecha(fecha: date):
+
+@app.get(
+    "/mediciones/fecha/apartir/{fecha}",
+    response_model=list[MedicionRespuesta]
+)
+def obtener_registros_apartir_de_fecha(fecha: datetime):
+    if fecha.tzinfo is None:
+        fecha = fecha.replace(tzinfo=timezone.utc)
+    else:
+        fecha = fecha.astimezone(timezone.utc)
+
     with SessionLocal() as db:
-        consulta = select(Medicion).where(
-            Medicion.fecha.cast(DateTime).date() >= fecha
+        consulta = (
+            select(Medicion)
+            .where(Medicion.fecha >= fecha)
+            .order_by(Medicion.fecha)
         )
         registros = db.scalars(consulta).all()
 
     if not registros:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No se encontraron registros a partir de la fecha especificada."
+            detail="No se encontraron registros a partir de la fecha y hora especificadas."
         )
 
     return registros
 
-@app.get("/mediciones/all")
+
+@app.get(
+    "/mediciones/all",
+    response_model=list[MedicionRespuesta]
+)
 def obtener_todos_los_registros():
     with SessionLocal() as db:
-        consulta = select(Medicion)
+        consulta = select(Medicion).order_by(Medicion.id)
         registros = db.scalars(consulta).all()
         return registros
