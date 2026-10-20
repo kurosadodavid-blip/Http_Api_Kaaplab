@@ -203,12 +203,6 @@ def obtener_registros_por_rango_de_fecha(
     fecha_inicio: date,
     fecha_fin: date
 ):
-    if fecha_inicio > fecha_fin:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La fecha de inicio no puede ser mayor que la fecha de fin."
-        )
-
     with SessionLocal() as db:
         consulta = select(Medicion).where(
             Medicion.fecha.cast(DateTime).date().between(fecha_inicio, fecha_fin)
@@ -223,4 +217,25 @@ def obtener_registros_por_rango_de_fecha(
 
     return registros
 
-@app.get("/mediciones/fecha/")
+@app.get("/mediciones/fecha/apartir/{fecha}")
+def obtener_registros_apartir_de_fecha(fecha: date):
+    with SessionLocal() as db:
+        consulta = select(Medicion).where(
+            Medicion.fecha.cast(DateTime).date() >= fecha
+        )
+        registros = db.scalars(consulta).all()
+
+    if not registros:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se encontraron registros a partir de la fecha especificada."
+        )
+
+    return registros
+
+@app.get("/mediciones/all")
+def obtener_todos_los_registros():
+    with SessionLocal() as db:
+        consulta = select(Medicion)
+        registros = db.scalars(consulta).all()
+        return registros
