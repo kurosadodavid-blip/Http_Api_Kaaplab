@@ -70,13 +70,11 @@ def migrar_base_datos():
 
     with engine.begin() as conexion:
 
-        # Agregar identificador de paquete si no existe
         conexion.execute(text("""
             ALTER TABLE mediciones
             ADD COLUMN IF NOT EXISTS id_paquete VARCHAR(100);
         """))
 
-        # Crear indice unico para identificadores no nulos
         conexion.execute(text("""
             CREATE UNIQUE INDEX IF NOT EXISTS
             uq_mediciones_id_paquete
@@ -84,8 +82,6 @@ def migrar_base_datos():
             WHERE id_paquete IS NOT NULL;
         """))
 
-        # Evitar alertas activas duplicadas para el mismo nodo,
-        # sensor y tipo de alerta.
         conexion.execute(text("""
             CREATE UNIQUE INDEX IF NOT EXISTS
             uq_alerta_activa_por_sensor
@@ -293,6 +289,109 @@ SesionDB = Annotated[
 
 
 # ==========================================
+# INSERTAR DATOS DE DEMOSTRACION
+# ==========================================
+
+def insertar_datos_demo():
+
+    db = SessionLocal()
+
+    try:
+
+        mediciones_demo = [
+            {
+                "id_paquete": "DEMO-KAABLAB-001",
+                "colmena": "COLMENA01",
+                "nodo": "NODO01",
+                "temperatura": 34.5,
+                "humedad": 65.0
+            },
+            {
+                "id_paquete": "DEMO-KAABLAB-002",
+                "colmena": "COLMENA01",
+                "nodo": "NODO01",
+                "temperatura": 35.2,
+                "humedad": 63.5
+            },
+            {
+                "id_paquete": "DEMO-KAABLAB-003",
+                "colmena": "COLMENA02",
+                "nodo": "NODO02",
+                "temperatura": 36.1,
+                "humedad": 58.0
+            },
+            {
+                "id_paquete": "DEMO-KAABLAB-004",
+                "colmena": "COLMENA02",
+                "nodo": "NODO02",
+                "temperatura": 33.8,
+                "humedad": 70.0
+            }
+        ]
+
+        for datos in mediciones_demo:
+
+            existente = db.scalar(
+                select(Medicion).where(
+                    Medicion.id_paquete == datos["id_paquete"]
+                )
+            )
+
+            if existente is None:
+                db.add(Medicion(**datos))
+
+        alertas_demo = [
+            {
+                "nodo": "NODO01",
+                "dispositivo_id": "SENSOR01",
+                "tipo_alerta": "TEMPERATURA_ALTA",
+                "descripcion": "DEMO: Temperatura superior al limite permitido.",
+                "estado": "ACTIVA",
+                "fecha_cierre": None
+            },
+            {
+                "nodo": "NODO01",
+                "dispositivo_id": "SENSOR02",
+                "tipo_alerta": "HUMEDAD_BAJA",
+                "descripcion": "DEMO: Humedad inferior al limite permitido.",
+                "estado": "ACTIVA",
+                "fecha_cierre": None
+            },
+            {
+                "nodo": "NODO02",
+                "dispositivo_id": "SENSOR01",
+                "tipo_alerta": "TEMPERATURA_BAJA",
+                "descripcion": "DEMO: Temperatura inferior al limite permitido.",
+                "estado": "CERRADA",
+                "fecha_cierre": datetime.now(timezone.utc)
+            }
+        ]
+
+        for datos in alertas_demo:
+
+            existente = db.scalar(
+                select(Alerta).where(
+                    Alerta.nodo == datos["nodo"],
+                    Alerta.dispositivo_id == datos["dispositivo_id"],
+                    Alerta.tipo_alerta == datos["tipo_alerta"],
+                    Alerta.descripcion == datos["descripcion"]
+                )
+            )
+
+            if existente is None:
+                db.add(Alerta(**datos))
+
+        db.commit()
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+
+# ==========================================
 # INICIO Y CIERRE DE LA API
 # ==========================================
 
@@ -302,6 +401,8 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
 
     migrar_base_datos()
+
+    insertar_datos_demo()
 
     yield
 
@@ -576,7 +677,6 @@ def registrar_alerta(
             detail="Los campos de la alerta no pueden estar vacios."
         )
 
-    # Si ya existe una alerta activa idéntica, se devuelve la existente.
     alerta_existente = db.scalar(
         select(Alerta).where(
             Alerta.nodo == nodo,
@@ -607,7 +707,6 @@ def registrar_alerta(
     except IntegrityError:
         db.rollback()
 
-        # Protege también ante dos solicitudes simultáneas.
         alerta_existente = db.scalar(
             select(Alerta).where(
                 Alerta.nodo == nodo,
@@ -731,7 +830,6 @@ def cerrar_alerta(
     return alerta
 
 
-
 # ==========================================
 # OBTENER MEDICION POR ID
 # ==========================================
@@ -758,6 +856,4 @@ def obtener_medicion(
         )
 
     return medicion
-
-
 
